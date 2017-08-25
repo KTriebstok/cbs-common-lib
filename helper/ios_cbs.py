@@ -254,16 +254,29 @@ class CommonIOSHelper(TestlioAutomationTest):
         self.send_keys(element=e, data=what_to_search_for)
 
     def enter_search_text_extended(self, what_to_search_for):
-        count = 0
-        e = self.find_search_text()
-        for i in range(0, len(what_to_search_for)):
-            self.send_keys(element=e, data=what_to_search_for[i])
-            if count >= 2:
-                if self.exists(element=self.get_element(id="No Shows Found", timeout=5)):
-                    self.assertTrueWithScreenShot(False, msg="No show '" + what_to_search_for + "' found", screenshot=True)
-                if len(self.get_elements(xpath="//UIAApplication[1]/UIAWindow[1]/UIACollectionView[1]/UIACollectionCell")) == 1:
+        if os.environ.get('AUTOMATION_NAME') == 'XCUITest':
+            #TODO add back the logic of checking if only one show is available.
+            e = self.find_search_text()
+            for i in range(0, len(what_to_search_for)):
+                self.send_keys(element=e, data=what_to_search_for[i])
+                if i > 15:
                     break
-            count += 1
+
+            if self.exists(element=self.get_element(id="No Shows Found", timeout=2)):
+                self.assertTrueWithScreenShot(False, msg="No show '" + what_to_search_for + "' found", screenshot=True)
+        else:
+            count = 0
+            e = self.find_search_text()
+            for i in range(0, len(what_to_search_for)):
+                self.send_keys(element=e, data=what_to_search_for[i])
+                if count >= 2:
+                    if self.exists(element=self.get_element(id="No Shows Found", timeout=5)):
+                        self.assertTrueWithScreenShot(False, msg="No show '" + what_to_search_for + "' found", screenshot=True)
+                    if len(self.get_elements(xpath="//UIAApplication[1]/UIAWindow[1]/UIACollectionView[1]/UIACollectionCell")) == 1:
+                        break
+                count += 1
+
+
 
     def search_for(self, what_to_search_for):
         self.click_search_icon()
@@ -274,9 +287,12 @@ class CommonIOSHelper(TestlioAutomationTest):
         self.enter_search_text_extended(what_to_search_for)
 
     def click_first_search_result(self):
-        element = self.get_search_result_episode_count_element()
-        element.click()
-
+        if os.environ.get('AUTOMATION_NAME') == 'XCUITest':
+            #TODO add back the correct element click, instead of location tap
+            self.tap_by_touchaction(.20, .20) # this works with only iPhone 7 HACK
+        else:
+            element = self.get_search_result_episode_count_element()
+            element.click()
     ####################################################################################
     # HEADER
     def header_back_button(self):
@@ -559,7 +575,11 @@ class CommonIOSHelper(TestlioAutomationTest):
             season_name = "Season " + str(show_dict['season_number'])
 
         # //UIATableView[1]/UIATableCell[1]/UIACollectionView[1]/UIACollectionCell
-        season_elem = self.find_on_page('id', season_name)
+        if show_dict['show_title'] == '60 Minutes':
+            season_elem = self.find_on_page('id', 'Latest Full Episodes')
+        else:
+            season_elem = self.find_on_page('id', season_name)
+
         self.assertTrueWithScreenShot(season_elem, screenshot=True, msg="Assert our season exists: %s" % season_name)
         # self.swipe_element_to_top_of_screen(season_elem, endy=.25, startx=20)
 
@@ -1091,7 +1111,6 @@ class CommonIOSHelper(TestlioAutomationTest):
 
         # For some stupid reason, it over-swipes sometimes.  Make sure it's still on the screen
         self.driver.page_source
-
         category_elem = self.exists(id=show_dict['show_category'], timeout=2)
         screen_height = self.driver.get_window_size()["height"]
         if not category_elem or category_elem.location['y'] < screen_height * .12:
@@ -1690,13 +1709,11 @@ class CommonIOSHelper(TestlioAutomationTest):
                 find_value = find_value.split(":")[0]
 
         #self.set_implicit_wait(30)
-        return self.get_element(xpath="//UIACollectionCell[contains(@name,'" + find_value + "') or contains(@name,'" + find_value_converted + "')][1]", timeout=60)
-        #
-        # if len(elems) > 0:
-        #     return elems[0]
+        if os.environ.get('AUTOMATION_NAME') == 'XCUITest':
+            return self.get_element(xpath="//*[contains(@name,'" + find_value + "') or contains(@name,'" + find_value_converted + "')][1]", timeout=60)
+        else:
+            return self.get_element(xpath="//UIACollectionCell[contains(@name,'" + find_value + "') or contains(@name,'" + find_value_converted + "')][1]", timeout=60)
 
-        # self.set_implicit_wait()
-        # return False
 
     def tap_element(self, **kwargs):
         elem = self._find_element(**kwargs)
@@ -1884,6 +1901,3 @@ class CommonIOSHelper(TestlioAutomationTest):
             self.click(xpath='//UIAImage[2]')
         self.event.screenshot(self.screenshot())
         sleep(5)
-
-
-
